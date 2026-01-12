@@ -38,6 +38,7 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
     startTime?: string;
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false); // Additional protection
+  const [showValidationSummary, setShowValidationSummary] = useState(false); // Only show after submit attempt
 
   const exerciseLogger = useMemo(() => new ExerciseLogger(storageManager), [storageManager]);
 
@@ -111,6 +112,9 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
       return;
     }
     
+    // Show validation summary on submit attempt
+    setShowValidationSummary(true);
+    
     if (validationErrors.length > 0) {
       Alert.alert(
         "Validation Error",
@@ -151,6 +155,7 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
       setExerciseName("");
       setDuration("");
       setStartTime("");
+      setShowValidationSummary(false); // Hide validation summary after successful save
       
       // Call the callback immediately
       console.log(`[${submissionId}] Calling onExerciseLogged callback...`);
@@ -271,8 +276,8 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
             </Text>
           </View>
 
-          {/* Validation Summary */}
-          {validationErrors.length > 0 && (
+          {/* Validation Summary - Only show after submit attempt */}
+          {showValidationSummary && validationErrors.length > 0 && (
             <View style={styles.validationSummary}>
               <Text style={styles.validationTitle}>
                 Please fix these issues:
