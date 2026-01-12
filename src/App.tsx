@@ -33,6 +33,7 @@ import {
 import SQLite from "react-native-sqlite-storage";
 
 // Import all UI components
+import { HomeScreen } from "./components/HomeScreen";
 import { ExerciseLoggingScreen } from "./components/ExerciseLoggingScreen";
 import { ExerciseHistoryScreen } from "./components/ExerciseHistoryScreen";
 import { ConflictResolutionScreen } from "./components/ConflictResolutionScreen";
@@ -57,7 +58,7 @@ import { Exercise_Record, Conflict, AppScreen, DataSource } from "./types";
  */
 const App: React.FC = () => {
   // Application state management
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>("logging");
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
   const [selectedExercise, setSelectedExercise] =
     useState<Exercise_Record | null>(null);
   const [selectedConflict, setSelectedConflict] = useState<Conflict | null>(
@@ -66,6 +67,8 @@ const App: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [homeRefreshKey, setHomeRefreshKey] = useState(0);
+  const [selectedRecommendation, setSelectedRecommendation] = useState<string>("");
 
   // Service instances - dependency injection pattern
   const [database, setDatabase] = useState<SQLite.SQLiteDatabase | null>(null);
@@ -144,6 +147,24 @@ const App: React.FC = () => {
     setCurrentScreen(screen);
     setSelectedExercise(null);
     setSelectedConflict(null);
+    
+    // Clear selected recommendation when navigating away from logging
+    if (screen !== "logging") {
+      setSelectedRecommendation("");
+    }
+    
+    // Refresh home screen when returning to it
+    if (screen === "home") {
+      setHomeRefreshKey(prev => prev + 1);
+    }
+  };
+
+  /**
+   * Handle exercise recommendation selection from home screen
+   * @param exerciseName - The name of the recommended exercise
+   */
+  const handleExerciseRecommendationSelect = (exerciseName: string) => {
+    setSelectedRecommendation(exerciseName);
   };
 
   /**
@@ -175,9 +196,17 @@ const App: React.FC = () => {
     // The ExerciseLoggingScreen already shows success/error messages
     // This callback is just for any additional logic if needed
     if (success) {
-      // Refresh history screen so new exercise appears immediately
-      console.log("Refreshing history screen...");
+      // Refresh both history and home screens so new exercise appears immediately
+      console.log("Refreshing history and home screens...");
       setHistoryRefreshKey(prev => prev + 1);
+      setHomeRefreshKey(prev => prev + 1);
+      
+      // Notify dashboard service of data update for reactive refresh
+      if (storageManager) {
+        const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+        dashboardService.notifyDataUpdate();
+      }
+      
       console.log("Exercise logged successfully - callback triggered");
     }
   };
@@ -192,8 +221,16 @@ const App: React.FC = () => {
     updatedRecord?: Exercise_Record
   ) => {
     if (success) {
-      // Refresh history screen to show updated exercise
+      // Refresh both history and home screens to show updated exercise
       setHistoryRefreshKey(prev => prev + 1);
+      setHomeRefreshKey(prev => prev + 1);
+      
+      // Notify dashboard service of data update for reactive refresh
+      if (storageManager) {
+        const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+        dashboardService.notifyDataUpdate();
+      }
+      
       setCurrentScreen("history");
       Alert.alert("Success", "Exercise updated successfully");
     } else {
@@ -245,8 +282,15 @@ const App: React.FC = () => {
         setShowDeleteModal(false);
         setSelectedExercise(null);
         
-        // Refresh history screen to show updated list
+        // Refresh both history and home screens to show updated list
         setHistoryRefreshKey(prev => prev + 1);
+        setHomeRefreshKey(prev => prev + 1);
+        
+        // Notify dashboard service of data update for reactive refresh
+        if (storageManager) {
+          const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+          dashboardService.notifyDataUpdate();
+        }
         
         Alert.alert("Success", "Exercise deleted successfully");
       }
@@ -298,8 +342,15 @@ const App: React.FC = () => {
             onPress: async () => {
               await dataPurgeService.purgeAllData("DELETE ALL DATA");
               
-              // Force history screen to refresh by updating the refresh key
+              // Force both history and home screens to refresh by updating the refresh keys
               setHistoryRefreshKey(prev => prev + 1);
+              setHomeRefreshKey(prev => prev + 1);
+              
+              // Notify dashboard service of data update for reactive refresh
+              if (storageManager) {
+                const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+                dashboardService.notifyDataUpdate();
+              }
               
               Alert.alert("Success", "All data has been deleted");
             },
@@ -330,11 +381,23 @@ const App: React.FC = () => {
     }
 
     switch (currentScreen) {
+      case "home":
+        return (
+          <HomeScreen
+            key={homeRefreshKey} // Force re-mount when refresh key changes
+            storageManager={storageManager}
+            onNavigateToScreen={navigateToScreen}
+            onExerciseRecommendationSelect={handleExerciseRecommendationSelect}
+            refreshKey={homeRefreshKey}
+          />
+        );
+
       case "logging":
         return (
           <ExerciseLoggingScreen
             storageManager={storageManager}
             onExerciseLogged={handleExerciseLogged}
+            prefilledExerciseName={selectedRecommendation}
           />
         );
 
@@ -387,6 +450,23 @@ const App: React.FC = () => {
       {/* Navigation Bar */}
       {!isLoading && storageManager && (
         <View style={styles.navigationBar}>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentScreen === "home" && styles.navButtonActive,
+            ]}
+            onPress={() => navigateToScreen("home")}
+          >
+            <Text
+              style={[
+                styles.navButtonText,
+                currentScreen === "home" && styles.navButtonTextActive,
+              ]}
+            >
+              🏠 Home
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.navButton,

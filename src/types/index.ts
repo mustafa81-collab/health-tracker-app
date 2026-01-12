@@ -333,7 +333,38 @@ export interface StepsRecord {
 }
 
 // Application navigation types
-export type AppScreen = "logging" | "history" | "edit" | "conflict";
+export type AppScreen = "home" | "logging" | "history" | "edit" | "conflict";
+
+// Dashboard-specific types
+export interface DailyExerciseStats {
+  exerciseCount: number;
+  totalDuration: number;
+  lastExerciseTime?: Date;
+  lastExerciseName?: string;
+}
+
+export interface WeeklyExerciseStats {
+  exerciseCount: number;
+  totalDuration: number;
+  mostFrequentExercise?: string;
+  averageDaily: number;
+  comparedToPreviousWeek: 'above' | 'below' | 'same';
+}
+
+export interface ExerciseRecommendation {
+  exerciseName: string;
+  lastPerformed?: Date;
+  daysSinceLastPerformed: number;
+  description: string;
+}
+
+export interface DashboardData {
+  dailyStats: DailyExerciseStats;
+  weeklyStats: WeeklyExerciseStats;
+  recentExercises: Exercise_Record[];
+  recommendations: ExerciseRecommendation[];
+  lastUpdated: Date;
+}
 
 // Alias for consistency with database naming
 export type Conflict_Record = Conflict;

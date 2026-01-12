@@ -21,13 +21,15 @@ import { VALIDATION_RULES, ERROR_MESSAGES } from "@/utils/constants";
 interface ExerciseLoggingScreenProps {
   onExerciseLogged?: (success: boolean) => void;
   storageManager: DataStorageManager;
+  prefilledExerciseName?: string;
 }
 
 export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
   onExerciseLogged,
   storageManager,
+  prefilledExerciseName = "",
 }) => {
-  const [exerciseName, setExerciseName] = useState("");
+  const [exerciseName, setExerciseName] = useState(prefilledExerciseName);
   const [duration, setDuration] = useState("");
   const [startTime, setStartTime] = useState("");
   const [isLogging, setIsLogging] = useState(false);
@@ -41,6 +43,13 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
   const [showValidationSummary, setShowValidationSummary] = useState(false); // Only show after submit attempt
 
   const exerciseLogger = useMemo(() => new ExerciseLogger(storageManager), [storageManager]);
+
+  // Update exercise name when prefilled name changes
+  useEffect(() => {
+    if (prefilledExerciseName && prefilledExerciseName !== exerciseName) {
+      setExerciseName(prefilledExerciseName);
+    }
+  }, [prefilledExerciseName, exerciseName]);
 
   // Real-time validation as user types
   useEffect(() => {
