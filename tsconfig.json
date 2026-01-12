@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["ES2017", "DOM"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@/components/*": ["components/*"],
+      "@/services/*": ["services/*"],
+      "@/types/*": ["types/*"],
+      "@/utils/*": ["utils/*"]
+    },
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "jsx": "react-native",
+    "declaration": false,
+    "sourceMap": false,
+    "outDir": "./dist",
+    "removeComments": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "isolatedModules": true
+  },
+  "include": [
+    "src/**/*",
+    "src/types/**/*.d.ts",
+    "index.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "android",
+    "ios",
+    "dist"
+  ]
+}
