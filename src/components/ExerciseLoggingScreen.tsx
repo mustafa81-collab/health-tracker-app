@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { ExerciseLogger } from "@/services/ExerciseLogger";
 import { DataStorageManager } from "@/services/database/DataStorageManager";
-import { ExerciseInput, ValidationResult } from "@/types";
+import { ExerciseInput } from "@/types";
 import { VALIDATION_RULES, ERROR_MESSAGES } from "@/utils/constants";
 
 interface ExerciseLoggingScreenProps {
@@ -49,7 +49,6 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
   }, [exerciseName, duration, startTime]);
 
   const validateFields = () => {
-    const errors: string[] = [];
     const fieldErrs: typeof fieldErrors = {};
 
     // Validate exercise name
