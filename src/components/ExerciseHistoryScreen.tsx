@@ -38,12 +38,15 @@ export const ExerciseHistoryScreen: React.FC<ExerciseHistoryScreenProps> = ({
   const loadExercises = useCallback(async () => {
     try {
       setError(null);
+      console.log("Loading exercises from database...");
+      
       // Get all records by using a wide date range
       const dateRange = {
         start: new Date("2020-01-01"),
         end: new Date("2030-12-31"),
       };
       const records = await storageManager.getExerciseHistory(dateRange);
+      console.log("Loaded exercises:", records.length, records);
 
       // Sort by start time (most recent first)
       const sortedRecords = records.sort(
@@ -56,8 +59,8 @@ export const ExerciseHistoryScreen: React.FC<ExerciseHistoryScreenProps> = ({
       const grouped = groupExercisesByDate(sortedRecords);
       setGroupedExercises(grouped);
     } catch (err) {
-      setError("Failed to load exercise history");
       console.error("Error loading exercises:", err);
+      setError("Failed to load exercise history");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

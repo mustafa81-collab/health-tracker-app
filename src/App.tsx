@@ -28,6 +28,7 @@ import {
   View,
   Alert,
   Text,
+  TouchableOpacity,
 } from "react-native";
 import SQLite from "react-native-sqlite-storage";
 
@@ -40,12 +41,13 @@ import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 
 // Import all business logic services
 import { DataStorageManager } from "./services/database/DataStorageManager";
+import { DatabaseMigrator } from "./services/database/migrations";
 import { ExerciseRecordManager } from "./services/ExerciseRecordManager";
 import { PermissionManager } from "./services/PermissionManager";
 import { DataPurgeService } from "./services/DataPurgeService";
 
 // Import type definitions
-import { Exercise_Record, Conflict, AppScreen } from "./types";
+import { Exercise_Record, Conflict, AppScreen, DataSource } from "./types";
 
 /**
  * Main Application Component
@@ -63,6 +65,7 @@ const App: React.FC = () => {
   );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   // Service instances - dependency injection pattern
   const [database, setDatabase] = useState<SQLite.SQLiteDatabase | null>(null);
@@ -83,7 +86,7 @@ const App: React.FC = () => {
    * Initialize the application by setting up database and services
    * 
    * This method:
-   * 1. Opens the SQLite database connection
+   * 1. Initializes the database with proper migrations
    * 2. Initializes all service instances with proper dependencies
    * 3. Sets up the service layer for the application
    * 4. Handles initialization errors gracefully
@@ -92,12 +95,16 @@ const App: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Initialize SQLite database
-      const db = await SQLite.openDatabase({
-        name: "health_tracker.db",
-        location: "default",
-      });
+      // Initialize database with migrations
+      const migrator = new DatabaseMigrator();
+      const migrationResult = await migrator.initialize();
 
+      if (!migrationResult.success) {
+        throw new Error(`Database migration failed: ${migrationResult.error}`);
+      }
+
+      // Get the initialized database
+      const db = migrator.getDatabase();
       setDatabase(db);
 
       // Initialize service layer with dependency injection
@@ -109,6 +116,16 @@ const App: React.FC = () => {
       setRecordManager(records);
       setDataPurgeService(purge);
 
+      console.log("App initialized successfully with database version:", migrationResult.version);
+      
+      // Test database connection by trying to query the exercise_records table
+      try {
+        const testResult = await db.executeSql("SELECT COUNT(*) as count FROM exercise_records");
+        console.log("Database test successful. Current exercise count:", testResult[0]?.rows?.item(0)?.count || 0);
+      } catch (testError) {
+        console.error("Database test failed:", testError);
+      }
+      
       setIsLoading(false);
     } catch (error) {
       console.error("Failed to initialize app:", error);
@@ -154,8 +171,14 @@ const App: React.FC = () => {
    * @param success - Whether the exercise was logged successfully
    */
   const handleExerciseLogged = async (success: boolean) => {
+    console.log("handleExerciseLogged called with success:", success);
+    // The ExerciseLoggingScreen already shows success/error messages
+    // This callback is just for any additional logic if needed
     if (success) {
-      Alert.alert("Success", "Exercise logged successfully");
+      // Refresh history screen so new exercise appears immediately
+      console.log("Refreshing history screen...");
+      setHistoryRefreshKey(prev => prev + 1);
+      console.log("Exercise logged successfully - callback triggered");
     }
   };
 
@@ -169,6 +192,8 @@ const App: React.FC = () => {
     updatedRecord?: Exercise_Record
   ) => {
     if (success) {
+      // Refresh history screen to show updated exercise
+      setHistoryRefreshKey(prev => prev + 1);
       setCurrentScreen("history");
       Alert.alert("Success", "Exercise updated successfully");
     } else {
@@ -182,6 +207,31 @@ const App: React.FC = () => {
    */
   const handleRecordSelect = (record: Exercise_Record) => {
     setSelectedExercise(record);
+    // Show options for what to do with the selected record
+    Alert.alert(
+      record.name,
+      `Duration: ${record.duration} minutes\nStart: ${record.startTime.toLocaleTimeString()}\nSource: ${record.source === DataSource.MANUAL ? 'Manual Entry' : 'Synced'}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        ...(record.source === DataSource.MANUAL ? [
+          {
+            text: "Edit",
+            onPress: () => navigateToEdit(record),
+          },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => handleDeleteRequest(record),
+          },
+        ] : [
+          {
+            text: "Delete",
+            style: "destructive", 
+            onPress: () => handleDeleteRequest(record),
+          },
+        ]),
+      ]
+    );
   };
 
   /**
@@ -194,6 +244,10 @@ const App: React.FC = () => {
         await recordManager.deleteExerciseRecord(exerciseId);
         setShowDeleteModal(false);
         setSelectedExercise(null);
+        
+        // Refresh history screen to show updated list
+        setHistoryRefreshKey(prev => prev + 1);
+        
         Alert.alert("Success", "Exercise deleted successfully");
       }
     } catch (error) {
@@ -243,6 +297,10 @@ const App: React.FC = () => {
             style: "destructive",
             onPress: async () => {
               await dataPurgeService.purgeAllData("DELETE ALL DATA");
+              
+              // Force history screen to refresh by updating the refresh key
+              setHistoryRefreshKey(prev => prev + 1);
+              
               Alert.alert("Success", "All data has been deleted");
             },
           },
@@ -283,6 +341,7 @@ const App: React.FC = () => {
       case "history":
         return (
           <ExerciseHistoryScreen
+            key={historyRefreshKey} // Force re-mount when refresh key changes
             storageManager={storageManager}
             onRecordSelect={handleRecordSelect}
           />
@@ -317,12 +376,60 @@ const App: React.FC = () => {
    * Renders the application with:
    * - Safe area handling for different device types
    * - Status bar configuration
+   * - Navigation bar for screen switching
    * - Current screen content
    * - Delete confirmation modal overlay
    */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      
+      {/* Navigation Bar */}
+      {!isLoading && storageManager && (
+        <View style={styles.navigationBar}>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentScreen === "logging" && styles.navButtonActive,
+            ]}
+            onPress={() => navigateToScreen("logging")}
+          >
+            <Text
+              style={[
+                styles.navButtonText,
+                currentScreen === "logging" && styles.navButtonTextActive,
+              ]}
+            >
+              📝 Log
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentScreen === "history" && styles.navButtonActive,
+            ]}
+            onPress={() => navigateToScreen("history")}
+          >
+            <Text
+              style={[
+                styles.navButtonText,
+                currentScreen === "history" && styles.navButtonTextActive,
+              ]}
+            >
+              📊 History
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={handleDataPurge}
+          >
+            <Text style={styles.navButtonText}>🗑️ Clear</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {renderCurrentScreen()}
 
       {/* Delete confirmation modal - shown when user requests exercise deletion */}
@@ -362,6 +469,42 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     color: "#666", // Medium gray for loading text
+  },
+  navigationBar: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  navButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  navButtonActive: {
+    backgroundColor: "#3498db",
+  },
+  navButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#7f8c8d",
+  },
+  navButtonTextActive: {
+    color: "#fff",
   },
 });
 

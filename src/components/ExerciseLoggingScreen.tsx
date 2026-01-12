@@ -1,7 +1,7 @@
 // Exercise logging screen with input validation and user feedback
 // Requirements: 1.1, 1.3, 1.4, 1.5
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -37,11 +37,13 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
     duration?: string;
     startTime?: string;
   }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false); // Additional protection
 
-  const exerciseLogger = new ExerciseLogger(storageManager);
+  const exerciseLogger = useMemo(() => new ExerciseLogger(storageManager), [storageManager]);
 
   // Real-time validation as user types
   useEffect(() => {
+    console.log("Validation useEffect triggered - exerciseName:", exerciseName, "duration:", duration, "startTime:", startTime);
     validateFields();
   }, [exerciseName, duration, startTime]);
 
@@ -100,6 +102,15 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
   };
 
   const handleLogExercise = async () => {
+    const submissionId = Date.now() + Math.random(); // Unique ID for this submission
+    console.log(`[${submissionId}] handleLogExercise called - isLogging:`, isLogging, "isSubmitting:", isSubmitting);
+    
+    // Double protection against multiple calls
+    if (isLogging || isSubmitting) {
+      console.log(`[${submissionId}] Already processing, ignoring duplicate call`);
+      return;
+    }
+    
     if (validationErrors.length > 0) {
       Alert.alert(
         "Validation Error",
@@ -108,7 +119,9 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
       return;
     }
 
+    console.log(`[${submissionId}] Starting exercise logging process`);
     setIsLogging(true);
+    setIsSubmitting(true);
 
     try {
       const exerciseInput: ExerciseInput = {
@@ -117,37 +130,45 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
         startTime: startTime.trim() ? new Date(startTime) : new Date(),
       };
 
+      console.log(`[${submissionId}] Exercise input prepared:`, exerciseInput);
+
       // Validate input using ExerciseLogger
       const validation = exerciseLogger.validateExerciseData(exerciseInput);
       if (!validation.isValid) {
         Alert.alert("Validation Error", validation.errors.join("\n"));
         setIsLogging(false);
+        setIsSubmitting(false);
         return;
       }
 
+      console.log(`[${submissionId}] Validation passed, saving exercise...`);
       // Log the exercise
       const exerciseRecord = await exerciseLogger.saveManualLog(exerciseInput);
+      console.log(`[${submissionId}] Exercise saved successfully:`, exerciseRecord);
 
-      Alert.alert("Success", "Exercise logged successfully!", [
-        {
-          text: "OK",
-          onPress: () => {
-            // Clear form
-            setExerciseName("");
-            setDuration("");
-            setStartTime("");
-            onExerciseLogged?.(true);
-          },
-        },
-      ]);
+      // Clear form immediately after successful save
+      console.log(`[${submissionId}] Clearing form...`);
+      setExerciseName("");
+      setDuration("");
+      setStartTime("");
+      
+      // Call the callback immediately
+      console.log(`[${submissionId}] Calling onExerciseLogged callback...`);
+      onExerciseLogged?.(true);
+
+      // Show success message without any callbacks
+      Alert.alert("Success", "Exercise logged successfully!");
     } catch (error) {
+      console.error(`[${submissionId}] Error saving exercise:`, error);
       Alert.alert(
         "Error",
         "An unexpected error occurred while logging the exercise"
       );
       onExerciseLogged?.(false);
     } finally {
+      console.log(`[${submissionId}] Setting isLogging and isSubmitting to false`);
       setIsLogging(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -159,6 +180,8 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
     validationErrors.length === 0 &&
     exerciseName.trim().length > 0 &&
     duration.trim().length > 0;
+
+  const isButtonDisabled = !isFormValid || isLogging || isSubmitting;
 
   return (
     <KeyboardAvoidingView
@@ -266,18 +289,19 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
           <TouchableOpacity
             style={[
               styles.logButton,
-              !isFormValid || isLogging ? styles.logButtonDisabled : null,
+              isButtonDisabled ? styles.logButtonDisabled : null,
             ]}
             onPress={handleLogExercise}
-            disabled={!isFormValid || isLogging}
+            disabled={isButtonDisabled}
+            activeOpacity={0.7}
           >
             <Text
               style={[
                 styles.logButtonText,
-                !isFormValid || isLogging ? styles.logButtonTextDisabled : null,
+                isButtonDisabled ? styles.logButtonTextDisabled : null,
               ]}
             >
-              {isLogging ? "Logging..." : "Log Exercise"}
+              {isLogging || isSubmitting ? "Logging..." : "Log Exercise"}
             </Text>
           </TouchableOpacity>
 

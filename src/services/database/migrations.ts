@@ -18,11 +18,10 @@ export class DatabaseMigrator {
       // Enable promise-based API
       SQLite.enablePromise(true);
 
-      // Open database
+      // Open database (remove the createFromLocation as it might not exist)
       this.db = await SQLite.openDatabase({
         name: DATABASE_NAME,
         location: "default",
-        createFromLocation: "~www/health_tracker.db",
       });
 
       // Check current version

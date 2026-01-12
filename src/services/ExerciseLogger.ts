@@ -132,6 +132,8 @@ export class ExerciseLogger implements IExerciseLogger {
    * @throws Error if validation fails or storage operation fails
    */
   async saveManualLog(exercise: ExerciseInput): Promise<Exercise_Record> {
+    console.log("ExerciseLogger.saveManualLog called with:", exercise);
+    
     // First validate the input
     const validation = this.validateExerciseData(exercise);
 
@@ -142,6 +144,8 @@ export class ExerciseLogger implements IExerciseLogger {
     // Generate unique ID and timestamps
     const id = this.generateExerciseId();
     const now = new Date();
+
+    console.log("Generated exercise ID:", id);
 
     // Create Exercise_Record from input
     const exerciseRecord: Exercise_Record = {
@@ -157,11 +161,16 @@ export class ExerciseLogger implements IExerciseLogger {
       updatedAt: now,
     };
 
+    console.log("Created exercise record:", exerciseRecord);
+
     // Save to storage
     try {
+      console.log("Calling storageManager.saveExerciseRecord...");
       await this.storageManager.saveExerciseRecord(exerciseRecord);
+      console.log("Exercise record saved to storage successfully");
 
       // Create audit record for the creation
+      console.log("Creating audit record...");
       await this.storageManager.saveAuditRecord({
         id: this.generateAuditId(),
         action: "record_created" as any,
@@ -174,9 +183,11 @@ export class ExerciseLogger implements IExerciseLogger {
           validationStatus: ValidationStatus.VALID,
         },
       });
+      console.log("Audit record created successfully");
 
       return exerciseRecord;
     } catch (error) {
+      console.error("Error in saveManualLog:", error);
       throw new Error(
         `Failed to save manual log: ${
           error instanceof Error ? error.message : "Unknown error"
