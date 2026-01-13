@@ -350,6 +350,42 @@ export class DataStorageManager implements IDataStorageManager {
     }
   }
 
+  /**
+   * Retrieve all exercise records from the database
+   * 
+   * Returns all exercises ordered by start time (most recent first).
+   * This method is used by the dashboard service to get all records
+   * for statistics and recommendations.
+   * 
+   * @returns Array of all exercise records
+   * @throws Error if retrieval operation fails
+   */
+  async getAllExerciseRecords(): Promise<Exercise_Record[]> {
+    try {
+      const result = await this.db.executeSql(
+        `SELECT * FROM exercise_records 
+         ORDER BY start_time DESC`
+      );
+
+      const records: Exercise_Record[] = [];
+
+      if (result && result.length > 0 && result[0].rows) {
+        for (let i = 0; i < result[0].rows.length; i++) {
+          const row = result[0].rows.item(i);
+          records.push(this.mapRowToExerciseRecord(row));
+        }
+      }
+
+      return records;
+    } catch (error) {
+      throw new Error(
+        `${ERROR_MESSAGES.STORAGE.LOAD_FAILED}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
   // Conflict preservation methods
 
   async saveHeldRecord(record: Exercise_Record): Promise<void> {

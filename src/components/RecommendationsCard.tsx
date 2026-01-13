@@ -163,6 +163,7 @@ export const RecommendationsCard: React.FC<RecommendationsCardProps> = ({
       style={[styles.container, style]} 
       accessibilityRole="list"
       accessibilityLabel={`Exercise recommendations: ${recommendations.length > 0 ? `${recommendations.length} suggestions available` : 'No recommendations available'}`}
+      testID="recommendations-card"
     >
       {/* Card Header */}
       <View 

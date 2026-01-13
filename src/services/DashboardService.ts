@@ -59,53 +59,51 @@ export class DashboardService {
   }
 
   /**
-   * Get complete dashboard data including all statistics and recommendations
+   * Get dashboard data with request deduplication for better performance
    * @returns Promise resolving to complete dashboard data
    */
   async getDashboardData(): Promise<DashboardData> {
     const now = new Date();
     const cacheKey = `dashboard_${now.toDateString()}`;
     
-    // Check cache first
+    // Check for optimistic updates first
+    const optimisticData = this.optimisticUpdates.get(cacheKey);
+    if (optimisticData) {
+      return optimisticData;
+    }
+
+    // Check precomputed cache for fastest response
+    const precomputed = this.precomputedCache.get(`precomputed_${now.toDateString()}`);
+    if (precomputed && this.isCacheValid(precomputed.timestamp)) {
+      return precomputed.data;
+    }
+
+    // Check regular cache
     const cached = this.getCachedData(cacheKey);
     if (cached) {
       return cached;
     }
 
+    // Deduplicate concurrent requests
+    const existingRequest = this.pendingRequests.get(cacheKey);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    // Create new request with deduplication
+    const request = this.getDashboardDataInternal();
+    this.pendingRequests.set(cacheKey, request);
+
     try {
-      // Get all data in parallel for better performance
-      const [dailyStats, weeklyStats, recentExercises, recommendations] = await Promise.all([
-        this.getDailyStats(now),
-        this.getWeeklyStats(this.getWeekStart(now)),
-        this.getRecentExercises(5),
-        this.getExerciseRecommendations(),
-      ]);
-
-      const dashboardData: DashboardData = {
-        dailyStats,
-        weeklyStats,
-        recentExercises,
-        recommendations,
-        lastUpdated: now,
-      };
-
+      const result = await request;
+      
       // Cache the result
-      this.setCachedData(cacheKey, dashboardData);
+      this.setCachedData(cacheKey, result);
       
-      return dashboardData;
-    } catch (error) {
-      console.error("Error getting dashboard data:", error);
-      
-      // Try to return stale cached data as fallback
-      const staleCache = this.getStaleCache(cacheKey);
-      if (staleCache) {
-        console.log("Returning stale cached data due to error");
-        return staleCache;
-      }
-      
-      // If no cache available, return empty dashboard data
-      console.log("No cached data available, returning empty dashboard");
-      return this.getEmptyDashboardData();
+      return result;
+    } finally {
+      // Clean up pending request
+      this.pendingRequests.delete(cacheKey);
     }
   }
 
@@ -124,7 +122,7 @@ export class DashboardService {
 
       // Get all exercises for the day with timeout protection
       const exercises = await Promise.race([
-        this.storageManager.getExerciseRecordsByDateRange(startOfDay, endOfDay),
+        this.storageManager.getExerciseHistory({ start: startOfDay, end: endOfDay }),
         new Promise<Exercise_Record[]>((_, reject) => 
           setTimeout(() => reject(new Error('Database query timeout')), 10000)
         )
@@ -155,8 +153,10 @@ export class DashboardService {
       return {
         exerciseCount,
         totalDuration,
-        lastExerciseTime: mostRecent?.startTime,
-        lastExerciseName: mostRecent?.name,
+        ...(mostRecent && {
+          lastExerciseTime: mostRecent.startTime,
+          lastExerciseName: mostRecent.name,
+        }),
       };
     } catch (error) {
       console.error("Error calculating daily stats:", error);
@@ -181,7 +181,7 @@ export class DashboardService {
 
       // Get exercises for current week with timeout protection
       const currentWeekExercises = await Promise.race([
-        this.storageManager.getExerciseRecordsByDateRange(weekStart, weekEnd),
+        this.storageManager.getExerciseHistory({ start: weekStart, end: weekEnd }),
         new Promise<Exercise_Record[]>((_, reject) => 
           setTimeout(() => reject(new Error('Database query timeout')), 10000)
         )
@@ -196,7 +196,7 @@ export class DashboardService {
       let previousWeekExercises: Exercise_Record[] = [];
       try {
         previousWeekExercises = await Promise.race([
-          this.storageManager.getExerciseRecordsByDateRange(prevWeekStart, prevWeekEnd),
+          this.storageManager.getExerciseHistory({ start: prevWeekStart, end: prevWeekEnd }),
           new Promise<Exercise_Record[]>((_, reject) => 
             setTimeout(() => reject(new Error('Database query timeout')), 10000)
           )
@@ -253,9 +253,9 @@ export class DashboardService {
       return {
         exerciseCount,
         totalDuration,
-        mostFrequentExercise,
         averageDaily,
         comparedToPreviousWeek,
+        ...(mostFrequentExercise && { mostFrequentExercise }),
       };
     } catch (error) {
       console.error("Error calculating weekly stats:", error);
@@ -446,10 +446,13 @@ export class DashboardService {
   }
 
   /**
-   * Clear all cached data (useful when exercises are added/modified)
+   * Enhanced cache clearing that also clears performance caches
    */
   public clearCache(): void {
     this.cache.clear();
+    this.precomputedCache.clear();
+    this.optimisticUpdates.clear();
+    this.pendingRequests.clear();
   }
 
   /**
@@ -478,12 +481,16 @@ export class DashboardService {
   }
 
   /**
-   * Notify all listeners that data has been updated
-   * This should be called whenever exercises are added, modified, or synced
+   * Enhanced data update notification with performance optimizations
    */
   public notifyDataUpdate(): void {
     this.lastDataUpdate = new Date();
-    this.clearCache(); // Clear cache to force fresh data
+    
+    // Clear all caches to force fresh data
+    this.clearCache();
+    
+    // Trigger immediate precomputation for next access
+    setTimeout(() => this.precomputeDashboardData(), 100);
     
     // Notify all listeners to refresh their data
     this.refreshListeners.forEach(listener => {
@@ -615,55 +622,6 @@ export class DashboardService {
   }
 
   /**
-   * Get dashboard data with request deduplication for better performance
-   * @returns Promise resolving to complete dashboard data
-   */
-  async getDashboardData(): Promise<DashboardData> {
-    const now = new Date();
-    const cacheKey = `dashboard_${now.toDateString()}`;
-    
-    // Check for optimistic updates first
-    const optimisticData = this.optimisticUpdates.get(cacheKey);
-    if (optimisticData) {
-      return optimisticData;
-    }
-
-    // Check precomputed cache for fastest response
-    const precomputed = this.precomputedCache.get(`precomputed_${now.toDateString()}`);
-    if (precomputed && this.isCacheValid(precomputed.timestamp)) {
-      return precomputed.data;
-    }
-
-    // Check regular cache
-    const cached = this.getCachedData(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // Deduplicate concurrent requests
-    const existingRequest = this.pendingRequests.get(cacheKey);
-    if (existingRequest) {
-      return existingRequest;
-    }
-
-    // Create new request with deduplication
-    const request = this.getDashboardDataInternal();
-    this.pendingRequests.set(cacheKey, request);
-
-    try {
-      const result = await request;
-      
-      // Cache the result
-      this.setCachedData(cacheKey, result);
-      
-      return result;
-    } finally {
-      // Clean up pending request
-      this.pendingRequests.delete(cacheKey);
-    }
-  }
-
-  /**
    * Internal method to get dashboard data without caching/deduplication
    * @returns Promise resolving to complete dashboard data
    */
@@ -751,38 +709,6 @@ export class DashboardService {
         this.precomputedCache.delete(key);
       }
     }
-  }
-
-  /**
-   * Enhanced cache clearing that also clears performance caches
-   */
-  public clearCache(): void {
-    this.cache.clear();
-    this.precomputedCache.clear();
-    this.optimisticUpdates.clear();
-    this.pendingRequests.clear();
-  }
-
-  /**
-   * Enhanced data update notification with performance optimizations
-   */
-  public notifyDataUpdate(): void {
-    this.lastDataUpdate = new Date();
-    
-    // Clear all caches to force fresh data
-    this.clearCache();
-    
-    // Trigger immediate precomputation for next access
-    setTimeout(() => this.precomputeDashboardData(), 100);
-    
-    // Notify all listeners to refresh their data
-    this.refreshListeners.forEach(listener => {
-      try {
-        listener();
-      } catch (error) {
-        console.error('Error in refresh listener:', error);
-      }
-    });
   }
 
   /**

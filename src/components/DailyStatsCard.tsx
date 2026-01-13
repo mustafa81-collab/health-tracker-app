@@ -170,6 +170,7 @@ export const DailyStatsCard: React.FC<DailyStatsCardProps> = ({
       style={[styles.container, style]} 
       accessibilityRole="summary"
       accessibilityLabel={`Today's exercise summary: ${dailyStats.exerciseCount} ${dailyStats.exerciseCount === 1 ? 'exercise' : 'exercises'}, ${formatDuration(dailyStats.totalDuration)} total time`}
+      testID="daily-stats-card"
     >
       {/* Card Header */}
       <View 

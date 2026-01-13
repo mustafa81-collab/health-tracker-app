@@ -469,17 +469,90 @@ jest.mock("react-native-health-connect", () => ({
   readRecords: jest.fn(),
 }));
 
-// Mock React Native Platform
-jest.mock("react-native", () => ({
-  Platform: {
-    OS: "ios",
-    Version: "17.0",
-    select: (obj: any) => obj.ios || obj.default,
-  },
-  StyleSheet: {
-    create: (styles: any) => styles,
-  },
-}));
+// Mock React Native Platform and Components
+jest.mock("react-native", () => {
+  const React = require('react');
+  
+  // Mock React Native components
+  const MockView = React.forwardRef((props: any, ref: any) => {
+    return React.createElement('div', { ...props, ref });
+  });
+  
+  const MockText = React.forwardRef((props: any, ref: any) => {
+    return React.createElement('span', { ...props, ref });
+  });
+  
+  const MockScrollView = React.forwardRef((props: any, ref: any) => {
+    return React.createElement('div', { ...props, ref });
+  });
+  
+  const MockTouchableOpacity = React.forwardRef((props: any, ref: any) => {
+    return React.createElement('button', { 
+      ...props, 
+      ref,
+      onClick: props.onPress,
+      style: { ...props.style, border: 'none', background: 'transparent' }
+    });
+  });
+  
+  const MockSafeAreaView = React.forwardRef((props: any, ref: any) => {
+    return React.createElement('div', { ...props, ref });
+  });
+  
+  const MockStatusBar = (props: any) => {
+    return null; // StatusBar doesn't render anything visible
+  };
+  
+  const MockRefreshControl = (props: any) => {
+    return null; // RefreshControl doesn't render anything visible
+  };
+  
+  return {
+    Platform: {
+      OS: "ios",
+      Version: "17.0",
+      select: (obj: any) => obj.ios || obj.default,
+    },
+    StyleSheet: {
+      create: (styles: any) => styles,
+      flatten: (styles: any) => {
+        if (!styles) return {};
+        if (Array.isArray(styles)) {
+          return styles.reduce((acc, style) => ({ ...acc, ...(style || {}) }), {});
+        }
+        if (typeof styles === 'object') {
+          return styles;
+        }
+        return {};
+      },
+    },
+    Alert: {
+      alert: jest.fn((title, message, buttons) => {
+        // Simulate user clicking the first button (usually OK or Cancel)
+        if (buttons && buttons.length > 0 && buttons[0].onPress) {
+          buttons[0].onPress();
+        }
+      }),
+    },
+    View: MockView,
+    Text: MockText,
+    ScrollView: MockScrollView,
+    TouchableOpacity: MockTouchableOpacity,
+    SafeAreaView: MockSafeAreaView,
+    StatusBar: MockStatusBar,
+    RefreshControl: MockRefreshControl,
+    AppState: {
+      currentState: 'active',
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    },
+    Dimensions: {
+      get: jest.fn(() => ({ width: 375, height: 812 })),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    },
+  };
+});
 
 // Global test utilities
 (global as any).mockExerciseRecord = {

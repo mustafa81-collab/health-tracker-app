@@ -44,12 +44,12 @@ export const ExerciseLoggingScreen: React.FC<ExerciseLoggingScreenProps> = ({
 
   const exerciseLogger = useMemo(() => new ExerciseLogger(storageManager), [storageManager]);
 
-  // Update exercise name when prefilled name changes
+  // Update exercise name when prefilled name changes (only once per prefilled value)
   useEffect(() => {
-    if (prefilledExerciseName && prefilledExerciseName !== exerciseName) {
+    if (prefilledExerciseName && prefilledExerciseName.trim() !== "") {
       setExerciseName(prefilledExerciseName);
     }
-  }, [prefilledExerciseName, exerciseName]);
+  }, [prefilledExerciseName]);
 
   // Real-time validation as user types
   useEffect(() => {

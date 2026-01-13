@@ -196,6 +196,9 @@ const App: React.FC = () => {
     // The ExerciseLoggingScreen already shows success/error messages
     // This callback is just for any additional logic if needed
     if (success) {
+      // Clear the selected recommendation so the form doesn't get refilled
+      setSelectedRecommendation("");
+      
       // Refresh both history and home screens so new exercise appears immediately
       console.log("Refreshing history and home screens...");
       setHistoryRefreshKey(prev => prev + 1);
@@ -203,7 +206,8 @@ const App: React.FC = () => {
       
       // Notify dashboard service of data update for reactive refresh
       if (storageManager) {
-        const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+        const { DashboardService } = require('./services/DashboardService');
+        const dashboardService = new DashboardService(storageManager);
         dashboardService.notifyDataUpdate();
       }
       
@@ -227,7 +231,8 @@ const App: React.FC = () => {
       
       // Notify dashboard service of data update for reactive refresh
       if (storageManager) {
-        const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+        const { DashboardService } = require('./services/DashboardService');
+        const dashboardService = new DashboardService(storageManager);
         dashboardService.notifyDataUpdate();
       }
       
@@ -288,7 +293,8 @@ const App: React.FC = () => {
         
         // Notify dashboard service of data update for reactive refresh
         if (storageManager) {
-          const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+          const { DashboardService } = require('./services/DashboardService');
+          const dashboardService = new DashboardService(storageManager);
           dashboardService.notifyDataUpdate();
         }
         
@@ -348,7 +354,8 @@ const App: React.FC = () => {
               
               // Notify dashboard service of data update for reactive refresh
               if (storageManager) {
-                const dashboardService = new (await import('./services/DashboardService')).DashboardService(storageManager);
+                const { DashboardService } = require('./services/DashboardService');
+                const dashboardService = new DashboardService(storageManager);
                 dashboardService.notifyDataUpdate();
               }
               
@@ -457,14 +464,17 @@ const App: React.FC = () => {
             ]}
             onPress={() => navigateToScreen("home")}
           >
-            <Text
-              style={[
-                styles.navButtonText,
-                currentScreen === "home" && styles.navButtonTextActive,
-              ]}
-            >
-              🏠 Home
-            </Text>
+            <View style={styles.navButtonContent}>
+              <Text style={styles.navButtonIcon}>🏠</Text>
+              <Text
+                style={[
+                  styles.navButtonText,
+                  currentScreen === "home" && styles.navButtonTextActive,
+                ]}
+              >
+                Home
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -474,14 +484,17 @@ const App: React.FC = () => {
             ]}
             onPress={() => navigateToScreen("logging")}
           >
-            <Text
-              style={[
-                styles.navButtonText,
-                currentScreen === "logging" && styles.navButtonTextActive,
-              ]}
-            >
-              📝 Log
-            </Text>
+            <View style={styles.navButtonContent}>
+              <Text style={styles.navButtonIcon}>📝</Text>
+              <Text
+                style={[
+                  styles.navButtonText,
+                  currentScreen === "logging" && styles.navButtonTextActive,
+                ]}
+              >
+                Log
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -491,21 +504,27 @@ const App: React.FC = () => {
             ]}
             onPress={() => navigateToScreen("history")}
           >
-            <Text
-              style={[
-                styles.navButtonText,
-                currentScreen === "history" && styles.navButtonTextActive,
-              ]}
-            >
-              📊 History
-            </Text>
+            <View style={styles.navButtonContent}>
+              <Text style={styles.navButtonIcon}>📊</Text>
+              <Text
+                style={[
+                  styles.navButtonText,
+                  currentScreen === "history" && styles.navButtonTextActive,
+                ]}
+              >
+                History
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.navButton}
             onPress={handleDataPurge}
           >
-            <Text style={styles.navButtonText}>🗑️ Clear</Text>
+            <View style={styles.navButtonContent}>
+              <Text style={styles.navButtonIcon}>🗑️</Text>
+              <Text style={styles.navButtonText}>Clear</Text>
+            </View>
           </TouchableOpacity>
         </View>
       )}
@@ -573,10 +592,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#f8f9fa",
   },
   navButtonActive: {
     backgroundColor: "#3498db",
+  },
+  navButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navButtonIcon: {
+    fontSize: 16,
+    marginRight: 6,
   },
   navButtonText: {
     fontSize: 14,

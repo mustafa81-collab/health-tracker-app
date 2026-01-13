@@ -240,6 +240,7 @@ export const WeeklyStatsCard: React.FC<WeeklyStatsCardProps> = ({
       style={[styles.container, style]} 
       accessibilityRole="summary"
       accessibilityLabel={`Weekly exercise summary: ${weeklyStats.exerciseCount} ${weeklyStats.exerciseCount === 1 ? 'exercise' : 'exercises'}, ${formatDuration(weeklyStats.totalDuration)} total time this week`}
+      testID="weekly-stats-card"
     >
       {/* Card Header */}
       <View 

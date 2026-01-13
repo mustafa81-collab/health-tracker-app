@@ -115,6 +115,7 @@ export const QuickActionsCard: React.FC<QuickActionsCardProps> = ({
       style={[styles.container, style]} 
       accessibilityRole="group"
       accessibilityLabel="Quick Actions: Log Exercise and View History buttons"
+      testID="quick-actions-card"
     >
       {/* Card Header */}
       <View 

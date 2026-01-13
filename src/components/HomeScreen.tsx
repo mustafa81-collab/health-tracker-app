@@ -30,7 +30,6 @@ import { DailyStatsCard } from './DailyStatsCard';
 import { WeeklyStatsCard } from './WeeklyStatsCard';
 import { RecentExercisesCard } from './RecentExercisesCard';
 import { RecommendationsCard } from './RecommendationsCard';
-import { QuickActionsCard } from './QuickActionsCard';
 
 interface HomeScreenProps {
   storageManager: DataStorageManager;
@@ -253,25 +252,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <Text style={styles.emptyText}>
         Start logging your exercises to see your progress here.
       </Text>
-      <QuickActionsCard
-        onNavigateToLogging={() => onNavigateToScreen('logging')}
-        onNavigateToHistory={() => onNavigateToScreen('history')}
-      />
     </View>
   );
 
-  /**
-   * Get current date string for header
-   */
-  const getCurrentDateString = () => {
-    const now = new Date();
-    return now.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
 
   // Show loading state on initial load
   if (isLoading && !dashboardData) {
@@ -329,13 +312,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             Good day!
           </Text>
-          <Text 
-            style={styles.dateText}
-            accessibilityRole="text"
-            accessibilityLabel={`Today's date: ${getCurrentDateString()}`}
-          >
-            {getCurrentDateString()}
-          </Text>
         </View>
 
         {/* Error indicator (if showing cached data) */}
@@ -371,13 +347,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <RecommendationsCard
               recommendations={dashboardData.recommendations}
               onRecommendationSelect={handleRecommendationSelect}
-              style={styles.card}
-            />
-
-            {/* Quick Actions Card */}
-            <QuickActionsCard
-              onNavigateToLogging={() => onNavigateToScreen('logging')}
-              onNavigateToHistory={() => onNavigateToScreen('history')}
               style={styles.card}
             />
           </View>
@@ -426,10 +395,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2c3e50',
     marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#7f8c8d',
   },
   cardsContainer: {
     paddingHorizontal: 16,
