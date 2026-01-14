@@ -73,20 +73,44 @@ Before running this project, make sure you have:
 
 ## 🏃‍♂️ Running the App
 
+### On Simulator/Emulator
+
 1. **Start Metro bundler**
    ```bash
    npm start
    ```
 
-2. **Run on iOS** (in another terminal)
+2. **Run on iOS Simulator** (in another terminal)
    ```bash
    npm run ios
    ```
 
-3. **Run on Android** (if Android setup is complete)
+3. **Run on Android Emulator** (if Android setup is complete)
    ```bash
    npm run android
    ```
+
+### 📱 On Physical iPhone
+
+**Want to install on your actual iPhone?** See the complete guide:
+
+👉 **[INSTALL_ON_IPHONE.md](./INSTALL_ON_IPHONE.md)** - Step-by-step installation guide
+
+**Quick summary:**
+1. Connect your iPhone via USB
+2. Open `ios/HealthTracker.xcworkspace` in Xcode
+3. Select your iPhone as the build target
+4. Click the Play button
+5. Trust the developer on your iPhone
+
+**Alternative methods:**
+- **Build IPA file**: `npm run build:ios` (see [IOS_DISTRIBUTION_GUIDE.md](./IOS_DISTRIBUTION_GUIDE.md))
+- **TestFlight**: For professional distribution (requires paid Apple Developer account)
+
+For detailed instructions, troubleshooting, and distribution options, see:
+- 📖 [INSTALL_ON_IPHONE.md](./INSTALL_ON_IPHONE.md) - Complete installation guide
+- 📦 [IOS_DISTRIBUTION_GUIDE.md](./IOS_DISTRIBUTION_GUIDE.md) - All distribution methods
+- 📋 [DISTRIBUTION_SUMMARY.md](./DISTRIBUTION_SUMMARY.md) - Quick overview
 
 ## 🧪 Testing
 
