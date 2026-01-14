@@ -119,3 +119,9 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Distribution packages (don't commit large binaries)
+*.zip
+*.ipa
+*.app
+*.dSYM.zip
